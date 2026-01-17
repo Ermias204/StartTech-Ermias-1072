@@ -1,0 +1,95 @@
+name: Frontend CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'frontend/**'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'frontend/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install Dependencies
+      run: npm ci
+    
+    - name: Run Linter
+      run: npm run lint --if-present
+    
+    - name: Run Tests
+      run: npm test --if-present
+    
+    - name: Security Audit
+      run: npm audit --audit-level=high
+    
+    - name: Build Application
+      run: npm run build
+      env:
+        CI: false
+    
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-build
+        path: frontend/dist/
+        retention-days: 1
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    
+    - name: Download Build Artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: frontend-build
+    
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+    
+    - name: Sync to S3
+      run: |
+        aws s3 sync ./ s3://${{ secrets.S3_BUCKET_NAME }} \
+          --delete \
+          --exclude ".git/*" \
+          --exclude ".github/*" \
+          --cache-control "max-age=31536000,public"
+    
+    - name: Invalidate CloudFront Cache
+      run: |
+        aws cloudfront create-invalidation \
+          --distribution-id ${{ secrets.CLOUDFRONT_DIST_ID }} \
+          --paths "/*"
+    
+    - name: Deployment Notification
+      if: success()
+      run: |
+        echo "Frontend deployment completed successfully!"
+        echo "S3 Bucket: ${{ secrets.S3_BUCKET_NAME }}"
+        echo "CloudFront Distribution ID: ${{ secrets.CLOUDFRONT_DIST_ID }}"

@@ -1,0 +1,42 @@
+#!/bin/bash
+set -e
+
+echo "=== Rollback Script ==="
+echo ""
+echo "This script provides guidance for rolling back deployments."
+echo ""
+
+# Frontend rollback instructions
+echo "=== Frontend Rollback ==="
+echo "1. List S3 object versions:"
+echo "   aws s3api list-object-versions --bucket \$S3_BUCKET_NAME --prefix index.html"
+echo ""
+echo "2. Restore previous version:"
+echo "   aws s3api copy-object --bucket \$S3_BUCKET_NAME --key index.html --copy-source \$S3_BUCKET_NAME/index.html?versionId=<PREVIOUS_VERSION_ID>"
+echo ""
+echo "3. Invalidate CloudFront cache:"
+echo "   aws cloudfront create-invalidation --distribution-id \$CLOUDFRONT_DIST_ID --paths '/*'"
+echo ""
+
+# Backend rollback instructions
+echo "=== Backend Rollback ==="
+echo "1. List available ECR images:"
+echo "   aws ecr describe-images --repository-name \$ECR_REPOSITORY --query 'sort_by(imageDetails, &imagePushedAt)[-10:]'"
+echo ""
+echo "2. Update Auto Scaling Group launch template:"
+echo "   aws ec2 create-launch-template-version --launch-template-id <TEMPLATE_ID> --source-version \$Latest --launch-template-data 'ImageId=<PREVIOUS_IMAGE_ID>'"
+echo ""
+echo "3. Terminate current instances:"
+echo "   aws autoscaling terminate-instance-in-auto-scaling-group --instance-id <INSTANCE_ID> --should-decrement-desired-capacity"
+echo ""
+echo "=== Quick Rollback Commands ==="
+echo ""
+echo "# Frontend to previous Git commit:"
+echo "git checkout HEAD~1 -- frontend/"
+echo "./scripts/deploy-frontend.sh"
+echo ""
+echo "# Backend to previous Git commit:"
+echo "git checkout HEAD~1 -- backend/"
+echo "./scripts/deploy-backend.sh"
+echo ""
+echo "Note: Replace variables with actual values from your environment."
