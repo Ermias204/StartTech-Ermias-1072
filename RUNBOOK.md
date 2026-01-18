@@ -2,7 +2,6 @@
 
 ## Emergency Contacts
 - **Primary DevOps Engineer:** Ermias
-- **On-call Schedule:** Monday-Friday 9AM-6PM
 
 ## Quick Reference
 
@@ -311,7 +310,7 @@ aws ecr describe-images --repository-name $ECR_REPOSITORY --query "imageDetails[
 echo ""
 echo "Infrastructure:"
 aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names starttech-production-asg --query "AutoScalingGroups[0].Instances"
-Contact Information
+Contact Informationa
 AWS Support: https://aws.amazon.com/contact-us
 
 MongoDB Support: https://support.mongodb.com
